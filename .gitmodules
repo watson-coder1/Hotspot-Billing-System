@@ -1,0 +1,3 @@
+[submodule "phpnuxbill"]
+	path = src
+	url = git@github.com:reduzersolutions/phpnuxbill.git

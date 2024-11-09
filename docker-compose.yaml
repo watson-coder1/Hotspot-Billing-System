@@ -1,0 +1,92 @@
+
+services:
+    app:
+        build:
+          context: .
+          dockerfile: Dockerfile
+        env_file:
+          - .env
+        ports:
+          - 80:80
+        restart: unless-stopped
+        volumes:
+          - ./src:/var/www/html
+        depends_on:
+          - mysql
+        networks:
+            - web
+            - backend
+
+    mysql:
+        image: 'mysql/mysql-server:8.0'
+        expose:
+          - '3306'
+        ports:
+          - '33060:3306'
+        environment:
+          MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+          MYSQL_ROOT_HOST: "%"
+          MYSQL_DATABASE: '${DB_DATABASE}'
+          MYSQL_USER: '${DB_USERNAME}'
+          MYSQL_PASSWORD: '${DB_PASSWORD}'
+          MYSQL_ALLOW_EMPTY_PASSWORD: "0"
+          RADIUS_DATABASE: "${RADIUS_DATABASE}"
+        command: [
+          '--default-authentication-plugin=mysql_native_password',
+          '--character-set-server=utf8mb4',
+          '--collation-server=utf8mb4_unicode_ci'
+        ]
+        volumes:
+          - 'mysql:/var/lib/mysql'
+          - './conf/mysql.sh:/docker-entrypoint-initdb.d/10-create-initial-setup.sh:rd'
+          - './raddb/config_data/mods-config/sql/main/mysql/schema.sql:/tmp/radius_schema.sql:ro'
+        networks:
+          - backend
+        healthcheck:
+          test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+          retries: 3
+          timeout: 5s
+    freeradius:
+        build:
+          context: ./raddb
+          dockerfile: Dockerfile
+        ports:
+          - '1812:1812/udp'
+          - '1813:1813/udp'
+        env_file:
+          - .env
+        environment:
+          - DB_NAME=${DB_DATABASE}
+          - DB_HOST=${DB_HOST}
+          - DB_USER=${DB_USERNAME}
+          - DB_PASS=${DB_PASSWORD}
+          - DB_PORT=${DB_PORT}
+          - RAD_DEBUG=yes
+        depends_on:
+          - mysql
+          - app
+
+        restart: unless-stopped
+
+        volumes:
+          - ./raddb/config_data/mods-available/sql:/etc/freeradius/3.0/mods-available/sql
+          - ./raddb/config_data/mods-available/sqlcounter:/etc/freeradius/3.0/mods-available/sqlcounter
+          - ./raddb/config_data/sites-available/default:/etc/freeradius/3.0/sites-available/default
+          - ./raddb/config_data/clients.conf:/etc/freeradius/3.0/clients.conf
+          - ./raddb/config_data/radiusd.conf:/etc/freeradius/3.0/radiusd.conf
+          - ./raddb/config_data/mods-config/sql/counter/mysql/accessperiod.conf:/etc/freeradius/3.0/mods-config/sql/counter/mysql/accessperiod.conf
+          - ./raddb/config_data/mods-config/sql/counter/mysql/quotalimit.conf:/etc/freeradius/3.0/mods-config/sql/counter/mysql/quotalimit.conf
+        networks:
+          - backend
+
+networks:
+  web:
+    driver: bridge
+
+  backend:
+    ipam:
+      config:
+        - subnet: 10.0.0.0/24
+volumes:
+  mysql:
+    driver: local

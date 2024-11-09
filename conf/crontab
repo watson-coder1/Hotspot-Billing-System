@@ -1,0 +1,2 @@
+ */15 17 * * * cd /var/www/html/system && php82 cron_reminder.php >/dev/null
+ * * * * * cd /var/www/html/system && php82 cron.php >/dev/null
