@@ -1,4 +1,4 @@
-# Hotspot Billing System with M-pesa Integration
+# WiFi Billing System with M-pesa Integration
 
 An MVP setup for Hotspot Billing using PHPNuxBill and FreeRADIUS
 
@@ -6,7 +6,7 @@ An MVP setup for Hotspot Billing using PHPNuxBill and FreeRADIUS
 
 1. Clone this repository
 ```bash
-git clone --recursive git@github.com:reduzersolutions/reduzer-internet-radius.git
+git clone --recursive git@github.com:reduzersolutions/radius-billing-system.git
 ```
 
 2. Create `.env` file with necessary configurations
