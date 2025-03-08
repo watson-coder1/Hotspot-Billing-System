@@ -1,0 +1,44 @@
+# CoA configuration per RFC 5176
+server coa {
+    listen {
+        type = coa
+        ipaddr = *
+        port = 3799
+    }
+
+    # Handle Disconnect-Request packets
+    recv-disconnect {
+        # Log the request
+        auth_log
+        
+        # Process the request
+        ok
+    }
+
+    # Handle CoA-Request packets
+    recv-coa {
+        # Log the request
+        auth_log
+        
+        # Process the request
+        ok
+    }
+
+    # Post-authorization for CoA
+    send-coa {
+        # Log the response
+        auth_log
+        
+        # Handle response
+        ok
+    }
+
+    # Post-authorization for Disconnect
+    send-disconnect {
+        # Log the response
+        auth_log
+        
+        # Handle response
+        ok
+    }
+} 

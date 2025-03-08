@@ -1,4 +1,3 @@
-
 services:
     app:
         build:
@@ -46,6 +45,7 @@ services:
           test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
           retries: 3
           timeout: 5s
+
     freeradius:
         build:
           context: ./raddb
@@ -53,6 +53,7 @@ services:
         ports:
           - '1812:1812/udp'
           - '1813:1813/udp'
+          - '3799:3799/udp'
         env_file:
           - .env
         environment:
@@ -79,8 +80,113 @@ services:
         networks:
           - backend
 
+    coa-service:
+        build:
+          context: ./coa-service
+        ports:
+          - '7080:8080'
+        restart: unless-stopped
+        networks:
+          - backend
+        volumes:
+          - ./coa-service/coa_handler.php:/var/www/html/coa_handler.php
+
+    omada-controller:
+        container_name: omada-controller
+        image: mbentley/omada-controller:latest
+        restart: unless-stopped
+        ulimits:
+          nofile:
+            soft: 4096
+            hard: 8192
+        stop_grace_period: 60s
+        networks:
+          - iothub
+        ports:
+          - '8088:8088'
+          - '8043:8043'
+          - '8843:8843'
+          - '27001:27001/udp'
+          - '29810:29810/udp'
+          - '29811-29816:29811-29816'
+        environment:
+          - PUID=508
+          - PGID=508
+          - MANAGE_HTTP_PORT=8088
+          - MANAGE_HTTPS_PORT=8043
+          - PORTAL_HTTP_PORT=8088
+          - PORTAL_HTTPS_PORT=8843
+          - PORT_APP_DISCOVERY=27001
+          - PORT_ADOPT_V1=29812
+          - PORT_UPGRADE_V1=29813
+          - PORT_MANAGER_V1=29811
+          - PORT_MANAGER_V2=29814
+          - PORT_DISCOVERY=29810
+          - PORT_TRANSFER_V2=29815
+          - PORT_RTTY=29816
+          - SHOW_SERVER_LOGS=true
+          - SHOW_MONGODB_LOGS=false
+          - SSL_CERT_NAME=tls.crt
+          - SSL_KEY_NAME=tls.key
+          - TZ=Etc/UTC
+        volumes:
+          - omada-data:/opt/tplink/EAPController/data
+          - omada-logs:/opt/tplink/EAPController/logs
+    unifi:
+        image: lscr.io/linuxserver/unifi-network-application:latest
+        container_name: unifi-network-application
+        networks:
+          - iothub
+        depends_on:
+          - mongo
+        environment:
+          - PUID=1000
+          - PGID=1000
+          - TZ=Etc/UTC
+          - MONGO_USER=unifi
+          - MONGO_PASS=password
+          - MONGO_HOST=mongo
+          - MONGO_PORT=27017
+          - MONGO_DBNAME=unifi-db
+          - MONGO_AUTHSOURCE=admin
+    #           - MEM_LIMIT=1024 #optional
+    #           - MEM_STARTUP=1024 #optional
+          - MONGO_TLS=
+        volumes:
+          - unifi-data:/config
+        ports:
+          - 8443:8443
+          - 3478:3478/udp
+          - 10001:10001/udp
+          - 8080:8080
+    #           - 1900:1900/udp #optional
+    #           - 8843:8843 #optional
+    #           - 8880:8880 #optional
+    #           - 6789:6789 #optional
+    #           - 5514:5514/udp #optional
+        restart: unless-stopped
+
+    mongo:
+        image: mongo:latest
+        restart: unless-stopped
+        networks:
+          - iothub
+        environment:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
+          MONGO_INITDB_DATABASE: mongo
+          MONGO_DBNAME: unifi-db
+          MONGO_USER: unifi
+          MONGO_PASS: password
+          MONGO_AUTHSOURCE: admin
+        volumes:
+          - mongo-data:/data/db
+          - mongo-config:/data/configdb
+          - ./conf/mongo/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
 networks:
   web:
+    driver: bridge
+  iothub:
     driver: bridge
 
   backend:
@@ -90,3 +196,9 @@ networks:
 volumes:
   mysql:
     driver: local
+  omada-data:
+  omada-logs:
+  unifi-data:
+  mongo-data:
+  mongo-config:
+
